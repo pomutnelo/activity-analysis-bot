@@ -1,15 +1,21 @@
 import sqlite3
-from typing import Any
+import logging
+from pathlib import Path
+
 from .config import DB_PATH
 
 
 def get_db_connection() -> sqlite3.Connection:
+    
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
 
 def init_db() -> None:
+    
+    Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -21,18 +27,12 @@ def init_db() -> None:
             user_id INTEGER NOT NULL,
             username TEXT,
             full_name TEXT,
-            date TEXT NOT NULL,              -- YYYY-MM-DD
-            messages_count INTEGER NOT NULL
-        );
+            date TEXT NOT NULL,
+            messages_count INTEGER NOT NULL DEFAULT 0
+        )
         """
-    )
-
-    cur.execute(
-        "CREATE INDEX IF NOT EXISTS idx_activity_chat_date ON user_activity(chat_id, date);"
-    )
-    cur.execute(
-        "CREATE INDEX IF NOT EXISTS idx_activity_chat_user_date ON user_activity(chat_id, user_id, date);"
     )
 
     conn.commit()
     conn.close()
+    logging.info("DB initialized")
