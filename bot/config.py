@@ -1,5 +1,4 @@
 import os
 
-BOT_TOKEN = "ur_token_here"
-
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 DB_PATH = os.getenv("DB_PATH", "activity.db")
