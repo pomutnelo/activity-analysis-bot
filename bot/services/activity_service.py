@@ -100,3 +100,29 @@ def get_user_activity(chat_id: int, user_id: int, days: int = 7) -> int:
     if row and row["total_messages"]:
         return int(row["total_messages"])
     return 0
+
+def get_top_activity_all_time(chat_id: int, limit: int = 10):
+    """
+    топ активности за всё время нахождения бота в чате
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT user_id,
+               COALESCE(username, '') AS username,
+               COALESCE(full_name, '') AS full_name,
+               SUM(messages_count) AS total_messages
+        FROM user_activity
+        WHERE chat_id = ?
+        GROUP BY user_id, username, full_name
+        ORDER BY total_messages DESC
+        LIMIT ?
+        """,
+        (chat_id, limit),
+    )
+
+    rows = cur.fetchall()
+    conn.close()
+    return rows
