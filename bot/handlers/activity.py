@@ -41,12 +41,15 @@ async def cmd_top(message: Message):
     conn.close()
 
     if not rows:
-        await message.answer("Пока нет данных по активности.")
+        await message.answer("Пока нет данных по активности в этом чате.")
         return
 
-    text = ["*ТОП активных:*", ""]
+
+    text = ["ТОП активных за всё время:", ""]
     for i, row in enumerate(rows, 1):
-        username = f"@{row['username']}" if row['username'] else row['full_name']
+        username = f"@{row['username']}" if row["username"] else (row["full_name"] or "без имени")
         text.append(f"{i}. {username} — {row['msg_count']} сообщений")
 
-    await message.answer("\n".join(text), parse_mode="Markdown")
+  
+    await message.answer("\n".join(text))
+
