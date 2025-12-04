@@ -1,128 +1,35 @@
-from datetime import datetime, timedelta
-from typing import List
+import logging
+from bot.db import get_connection  # ⚠️ только так
+from bot.config import DB_PATH
 
-from ..db import get_db_connection
-
-
-def add_message_activity(
-    chat_id: int,
-    user_id: int,
-    username: str | None,
-    full_name: str | None,
-) -> None:
-    
-    today = datetime.utcnow().date().isoformat()
-
-    conn = get_db_connection()
-    cur = conn.cursor()
-
-    cur.execute(
-        """
-        SELECT id, messages_count
-        FROM user_activity
-        WHERE chat_id = ? AND user_id = ? AND date = ?
-        """,
-        (chat_id, user_id, today),
-    )
-    row = cur.fetchone()
-
-    if row:
-        new_count = row["messages_count"] + 1
-        cur.execute(
-            """
-            UPDATE user_activity
-            SET messages_count = ?, username = ?, full_name = ?
-            WHERE id = ?
-            """,
-            (new_count, username, full_name, row["id"]),
-        )
-    else:
-        cur.execute(
-            """
-            INSERT INTO user_activity (chat_id, user_id, username, full_name, date, messages_count)
-            VALUES (?, ?, ?, ?, ?, 1)
-            """,
-            (chat_id, user_id, username, full_name, today),
-        )
-
-    conn.commit()
-    conn.close()
+logger = logging.getLogger(__name__)
 
 
-def get_top_activity(chat_id: int, days: int = 1, limit: int = 10):
-    
-    conn = get_db_connection()
-    cur = conn.cursor()
-
-    from_date = (datetime.utcnow().date() - timedelta(days=days - 1)).isoformat()
-
-    cur.execute(
-        """
-        SELECT user_id,
-               COALESCE(username, '') AS username,
-               COALESCE(full_name, '') AS full_name,
-               SUM(messages_count) AS total_messages
-        FROM user_activity
-        WHERE chat_id = ?
-          AND date >= ?
-        GROUP BY user_id, username, full_name
-        ORDER BY total_messages DESC
-        LIMIT ?
-        """,
-        (chat_id, from_date, limit),
-    )
-
-    rows = cur.fetchall()
-    conn.close()
-    return rows
-
-
-def get_user_activity(chat_id: int, user_id: int, days: int = 7) -> int:
-    
-    conn = get_db_connection()
-    cur = conn.cursor()
-
-    from_date = (datetime.utcnow().date() - timedelta(days=days - 1)).isoformat()
-
-    cur.execute(
-        """
-        SELECT SUM(messages_count) AS total_messages
-        FROM user_activity
-        WHERE chat_id = ?
-          AND user_id = ?
-          AND date >= ?
-        """,
-        (chat_id, user_id, from_date),
-    )
-    row = cur.fetchone()
-    conn.close()
-
-    if row and row["total_messages"]:
-        return int(row["total_messages"])
-    return 0
-
-def get_top_activity_all_time(chat_id: int, limit: int = 10):
+def get_top_users(chat_id: int, limit: int = 10):
     """
-    топ активности за всё время нахождения бота в чате
+    Возвращает список строк (sqlite3.Row):
+    user_id, username, full_name, msg_count
     """
-    conn = get_db_connection()
-    cur = conn.cursor()
+    logger.info(f"TOP REQUEST for chat={chat_id}, DB_PATH={DB_PATH}")
 
-    cur.execute(
-        """
-        SELECT user_id,
-               COALESCE(username, '') AS username,
-               COALESCE(full_name, '') AS full_name,
-               SUM(messages_count) AS total_messages
-        FROM user_activity
-        WHERE chat_id = ?
-        GROUP BY user_id, username, full_name
-        ORDER BY total_messages DESC
-        LIMIT ?
-        """,
-        (chat_id, limit),
-    )
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT user_id,
+                   username,
+                   full_name,
+                   COUNT(*) AS msg_count
+            FROM activity_messages
+            WHERE chat_id = ?
+            GROUP BY user_id
+            ORDER BY msg_count DESC
+            LIMIT ?
+            """,
+            (chat_id, limit),
+        ).fetchall()
+    finally:
+        conn.close()
 
-    rows = cur.fetchall()
-    conn.close()
+    logger.info(f"TOP rows fetched: {len(rows)}")
     return rows

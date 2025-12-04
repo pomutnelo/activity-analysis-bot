@@ -2,11 +2,12 @@ from aiogram import Router
 
 from .common import router as common_router
 from .logging import router as logging_router
+from .activity import router as activity_router
 
 
 def get_routers() -> list[Router]:
-  
     return [
-        logging_router,
         common_router,
+        activity_router,   
+        logging_router,    
     ]

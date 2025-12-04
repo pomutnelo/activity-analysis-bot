@@ -1,11 +1,12 @@
 import sqlite3
 import logging
-from pathlib import Path
 
 from .config import DB_PATH
 
+logger = logging.getLogger(__name__)
 
-def get_db_connection() -> sqlite3.Connection:
+
+def get_connection() -> sqlite3.Connection:
     
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -14,25 +15,19 @@ def get_db_connection() -> sqlite3.Connection:
 
 def init_db() -> None:
     
-    Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
-
-    conn = get_db_connection()
-    cur = conn.cursor()
-
-    cur.execute(
+    conn = get_connection()
+    conn.execute(
         """
-        CREATE TABLE IF NOT EXISTS user_activity (
+        CREATE TABLE IF NOT EXISTS activity_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             chat_id INTEGER NOT NULL,
             user_id INTEGER NOT NULL,
             username TEXT,
             full_name TEXT,
-            date TEXT NOT NULL,
-            messages_count INTEGER NOT NULL DEFAULT 0
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
-
     conn.commit()
     conn.close()
-    logging.info("DB initialized")
+    logger.info("DB initialized")
